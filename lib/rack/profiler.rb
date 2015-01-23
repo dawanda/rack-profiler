@@ -82,7 +82,6 @@ module Rack
     extend ClassMethods
 
     subscribe('sql.active_record')
-    subscribe('rack-profiler.total_time')
     subscribe('rack-profiler.step')
 
     def initialize(app)
@@ -95,7 +94,7 @@ module Rack
       req = Rack::Request.new(env)
 
       if req.params.has_key?('rack-profiler')
-        ActiveSupport::Notifications.instrument('rack-profiler.total_time') do
+        Profiler.step('total_time') do
           status, headers, body = @app.call(env)
         end
         [200, {}, [{ events: Profiler.nested_events, response: { status: status, headers: headers, body: body } }.to_json]]
