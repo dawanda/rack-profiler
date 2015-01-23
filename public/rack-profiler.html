@@ -23,8 +23,7 @@
       .pr-steps td.pr-depth-8:before  { content: "\2043"; padding: 0 0.5em 0 8em }
       .pr-steps td.pr-depth-9:before  { content: "\2043"; padding: 0 0.5em 0 9em }
       .pr-steps td.pr-depth-10:before { content: "\2043"; padding: 0 0.5em 0 10em }
-      .pr-steps td span.step-name {
-        display: block;
+      .pr-steps td:first-child {
         width: 800px;
         overflow: hidden;
         white-space: nowrap;
@@ -153,7 +152,9 @@
       <tr>
         <td>
           <pre>{{ sql }}</pre>
-          <details><summary>Backtrace</summary><pre>{{ #backtrace }}{{.}}{{ /backtrace }}</pre></details></td>
+          <details><summary>Backtrace</summary>
+<pre>{{ #backtrace }}{{.}}
+{{ /backtrace }}</pre></details></td>
         </td>
         <td>{{ duration }}ms</td>
         <td>{{ percent }}%</td>
