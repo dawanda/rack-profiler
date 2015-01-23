@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Rack::Profiler</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <style type="text/css">
+      .stats details summary {
+        cursor: pointer;
+        outline: none;
+      }
+
+      .pr-steps td.pr-depth-1:before  { content: "\2043"; padding: 0 0.5em 0 1em }
+      .pr-steps td.pr-depth-2:before  { content: "\2043"; padding: 0 0.5em 0 2em }
+      .pr-steps td.pr-depth-3:before  { content: "\2043"; padding: 0 0.5em 0 3em }
+      .pr-steps td.pr-depth-4:before  { content: "\2043"; padding: 0 0.5em 0 4em }
+      .pr-steps td.pr-depth-5:before  { content: "\2043"; padding: 0 0.5em 0 5em }
+      .pr-steps td.pr-depth-6:before  { content: "\2043"; padding: 0 0.5em 0 6em }
+      .pr-steps td.pr-depth-7:before  { content: "\2043"; padding: 0 0.5em 0 7em }
+      .pr-steps td.pr-depth-8:before  { content: "\2043"; padding: 0 0.5em 0 8em }
+      .pr-steps td.pr-depth-9:before  { content: "\2043"; padding: 0 0.5em 0 9em }
+      .pr-steps td.pr-depth-10:before { content: "\2043"; padding: 0 0.5em 0 10em }
+      .pr-steps td span.step-name {
+        display: block;
+        width: 800px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .pr-queries th {
+        white-space: nowrap;
+      }
+      .pr-queries pre {
+        max-width: 800px;
+        font-size: 12px;
+      }
+
+    </style>
+  </head>
+  <body>
+
+    <div class="container">
+
+      <h1 class="page-header">Rack::Profiler</h1>
+
+      <form class="pr-request-form">
+        <div class="row">
+          <div class="col-md-2">
+            <select id="req-method" class="form-control">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="PATCH">PATCH</option>
+              <option value="OPTIONS">OPTIONS</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <input type="text" id="req-path" class="form-control" placeholder="Path">
+          </div>
+          <div class="col-md-6">
+            <input type="text" id="req-data" class="form-control" placeholder="Data">
+          </div>
+          <div class="col-md-1">
+            <button type="submit" class="btn btn-success">Profile</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="stats" style="display:none;">
+
+        <hr>
+
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h3 class="panel-title">Response</h3>
+          </div>
+          <div id="response" class="panel-body"></div>
+        </div>
+
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h3 class="panel-title">Steps</h3>
+          </div>
+              <div id="response" class="panel-body">
+            <table class="table pr-steps">
+              <thead>
+                <tr>
+                  <th>Step</th>
+                  <th>Duration</th>
+                  <th>% of Total</th>
+                  <th>From Start</th>
+                </tr>
+              </thead>
+              <tbody id="steps"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h3 class="panel-title">SQL Queries <span id="query_count" class="badge"></span></h3>
+          </div>
+          <div id="response" class="panel-body">
+            <table class="table pr-queries">
+              <thead>
+                <tr>
+                  <th>Query</th>
+                  <th>Duration</th>
+                  <th>% of Total</th>
+                  <th>From Start</th>
+                </tr>
+              </thead>
+              <tbody id="queries"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/0.8.1/mustache.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+
+    <script type="text/template" id="response_tmpl">
+      <strong>Status:</strong> {{ status }}<br>
+      <strong>Headers:</strong>
+      <ul>
+      {{ #formatted_headers }}
+        <li>{{.}}</li>
+      {{ /formatted_headers }}
+      </ul>
+      <strong>Body:</strong>
+      <details><summary>Toggle</summary><pre>{{ body }}</pre></details>
+    </script>
+
+    <script type="text/template" id="step_tmpl">
+      <tr>
+        <td class='pr-depth-{{ depth }}'>
+          <span class="step-name">{{ name }}</span>
+        </td>
+        <td>{{ duration }}ms</td>
+        <td>{{ percent }}%</td>
+        <td>+{{ fromStart }}ms</td>
+      </tr>
+    </script>
+
+    <script type="text/template" id="query_tmpl">
+      <tr>
+        <td>
+          <pre>{{ sql }}</pre>
+          <details><summary>Backtrace</summary><pre>{{ #backtrace }}{{.}}{{ /backtrace }}</pre></details></td>
+        </td>
+        <td>{{ duration }}ms</td>
+        <td>{{ percent }}%</td>
+        <td>+{{ fromStart }}ms</td>
+      </tr>
+    </script>
+
+    <script type="text/javascript">
+      (function() {
+
+        var responseTmpl = $("#response_tmpl").html()
+        var queryTmpl    = $("#query_tmpl").html()
+        var stepTmpl     = $("#step_tmpl").html()
+        Mustache.parse(responseTmpl)
+        Mustache.parse(queryTmpl)
+        Mustache.parse(stepTmpl)
+
+        $(".pr-request-form").submit( function( evt ) {
+          evt.preventDefault()
+          $(".stats").hide()
+
+          var path = $("#req-path").val()   || "/"
+          var type = $("#req-method").val() || "GET"
+          var data = $("#req-data").val()
+          $(".pr-queries tbody").html('')
+          $(".pr-steps tbody").html('')
+
+          $.ajax( path, { type: type, data: $.extend(data, { "rack-profiler": 1 }) } )
+            .done(function( data, status, xhr ) {
+              $("body").animate({ scrollTop: 165 })
+              $(".stats").show()
+
+              var rootEvent  = data.events[0],
+                  queryCount = 0
+
+              var formattedHeaders = Object.keys(data.response.headers).map(function(key) {
+                return key + ": " + data.response.headers[key]
+              })
+              $.extend(data.response, { formatted_headers: formattedHeaders })
+
+              $('#response').html( Mustache.render(responseTmpl, data.response) )
+
+              var renderEvents = function( events, depth ) {
+                events.map( function( event ) {
+                  if ( event.name == "sql.active_record" ) {
+                    var sqlEvent = {
+                      sql:       event.payload.sql,
+                      duration:  event.duration.toFixed(2),
+                      percent:   ( event.duration / rootEvent.duration * 100 ).toFixed(2),
+                      fromStart: ( ( event.start - rootEvent.start ) * 1000 ).toFixed(2),
+                      backtrace: event.backtrace
+                    }
+                    $(".pr-queries tbody").append( Mustache.render(queryTmpl, sqlEvent) )
+                    queryCount++
+                  } else if ( event.name == "rack-profiler.step" ) {
+                    var stepEvent = {
+                      name:      event.payload.step_name,
+                      duration:  event.duration.toFixed(2),
+                      percent:   ( event.duration / rootEvent.duration * 100 ).toFixed(2),
+                      fromStart: ( ( event.start - rootEvent.start ) * 1000 ).toFixed(2),
+                      depth:     depth
+                    }
+                    $(".pr-steps tbody").append( Mustache.render(stepTmpl, stepEvent) )
+                  }
+
+                  // Recurse on children
+                  if ( event.children ) {
+                    renderEvents( event.children, depth + 1 )
+                  }
+                })
+              }
+
+              renderEvents( data.events, 0 )
+              $("#query_count").html(queryCount)
+            })
+            .fail(function( _, __, error ) { alert( "Request failed with: " + error ) })
+        })
+
+      })();
+    </script>
+  </body>
+</html>

@@ -14,6 +14,14 @@ module Rack
         @_backtrace_filter = block
       end
 
+      def dashboard_path=(path)
+        @_dashboard_path = path
+      end
+
+      def dashboard_path
+        @_dashboard_path || '/rack-profiler'
+      end
+
       def events
         @events ||= []
       end
@@ -48,6 +56,12 @@ module Rack
           }
           Profiler.events << evt
         end
+      end
+
+      def render_dashboard
+        dashboard = ::File.expand_path( '../../public/rack-profiler.html', ::File.dirname( __FILE__ ) )
+        body      = ::File.open(dashboard, ::File::RDONLY)
+        [200, { 'Content-Type' => 'text/html', 'Cache-Control' => 'public, max-age=86400' }, body]
       end
 
       private
@@ -93,11 +107,13 @@ module Rack
       status, headers, body = [nil, nil, nil]
       req = Rack::Request.new(env)
 
-      if req.params.has_key?('rack-profiler')
+      if req.path == Profiler.dashboard_path
+        Profiler.render_dashboard
+      elsif req.params.has_key?('rack-profiler')
         Profiler.step('total_time') do
           status, headers, body = @app.call(env)
         end
-        [200, {}, [{ events: Profiler.nested_events, response: { status: status, headers: headers, body: body } }.to_json]]
+        [200, { 'Content-Type' => 'application/json' }, [{ events: Profiler.nested_events, response: { status: status, headers: headers, body: body } }.to_json]]
       else
         @status, @headers, @body = @app.call(env)
       end
