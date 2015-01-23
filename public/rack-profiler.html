@@ -73,7 +73,7 @@
 
         <hr>
 
-        <div class="panel panel-default">
+        <div id="response_panel" class="panel panel-default">
           <div class="panel-heading">
             <h3 class="panel-title">Response</h3>
           </div>
@@ -196,6 +196,11 @@
               $.extend(data.response, { formatted_headers: formattedHeaders })
 
               $('#response').html( Mustache.render(responseTmpl, data.response) )
+              if (data.response.status < 400) {
+                $('#response_panel').removeClass('panel-danger').addClass('panel-success')
+              } else {
+                $('#response_panel').removeClass('panel-success').addClass('panel-danger')
+              }
 
               var renderEvents = function( events, depth ) {
                 events.map( function( event ) {
