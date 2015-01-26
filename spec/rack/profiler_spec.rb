@@ -95,5 +95,13 @@ describe Rack::Profiler do
         "do stuff"
       end
     end
+
+    it "mixes data in the payload if provided" do
+      expect(ActiveSupport::Notifications).to receive(:instrument).with(
+        'rack-profiler.step', { step_name: 'xxx', foo: 'bar' })
+      Rack::Profiler.step('xxx', foo: 'bar') do
+        "do stuff"
+      end
+    end
   end
 end

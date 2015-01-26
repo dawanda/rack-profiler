@@ -24,8 +24,8 @@ module Rack
         @dashboard_path || '/rack-profiler'
       end
 
-      def step(name)
-        ActiveSupport::Notifications.instrument('rack-profiler.step', step_name: name) do
+      def step(name, payload = {})
+        ActiveSupport::Notifications.instrument('rack-profiler.step', payload.merge(step_name: name)) do
           yield
         end
       end
