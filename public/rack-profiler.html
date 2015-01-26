@@ -39,6 +39,10 @@
         background: #5cb85c;
       }
 
+      .step-bar.step-type-process-action {
+        background: #d9534f;
+      }
+
       .key-value-list {
         margin: 1em 0;
         padding: 1em;
@@ -208,37 +212,33 @@
     <script type="text/javascript">
       (function() {
 
-        var responseTmpl = $("#response_tmpl").html()
-        var queryTmpl    = $("#query_tmpl").html()
-        var stepTmpl     = $("#step_tmpl").html()
-        Mustache.parse(responseTmpl)
-        Mustache.parse(queryTmpl)
-        Mustache.parse(stepTmpl)
+        var responseTmpl = $("#response_tmpl").html(),
+            queryTmpl    = $("#query_tmpl").html(),
+            stepTmpl     = $("#step_tmpl").html()
 
         $(".pr-request-form").submit( function( evt ) {
           evt.preventDefault()
           $(".stats").hide()
 
-          var path = $("#req-path").val()   || "/"
-          var type = $("#req-method").val() || "GET"
-          var data = $("#req-data").val()
+          var path = $("#req-path").val()   || "/",
+              type = $("#req-method").val() || "GET",
+              data = $("#req-data").val()
+
           $(".pr-queries tbody").html('')
           $(".pr-steps tbody").html('')
 
           $.ajax( path, { type: type, data: $.extend(data, { "rack-profiler": 1 }) } )
             .done(function( data, status, xhr ) {
-              $("body").animate({ scrollTop: 165 })
               $(".stats").show()
 
-              var rootEvent  = data.events[0],
-                  queryCount = 0
+              var rootEvent     = data.events[0],
+                  queryCount    = 0,
+                  headersKeyVal = Object.keys( data.response.headers ).map( function( key ) {
+                    return { key: key, value: data.response.headers[key] }
+                  }),
+                  responseWrap  = $.extend( {}, data.response, { headers: headersKeyVal } )
 
-              var headersKeyVal = Object.keys(data.response.headers).map(function(key) {
-                return { key: key, value: data.response.headers[key] }
-              })
-              var formatted_response = $.extend({}, data.response, { headers: headersKeyVal })
-
-              $('#response').html( Mustache.render(responseTmpl, formatted_response) )
+              $('#response').html( Mustache.render( responseTmpl, responseWrap ) )
               if (data.response.status < 400) {
                 $('#response_panel').removeClass('panel-danger').addClass('panel-success')
               } else {
@@ -259,13 +259,14 @@
                     queryCount++
                   }
 
+                  var eventType = null
                   switch ( event.name ) {
-                    case 'sql.active_record': var eventType = 'sql'; break;
-                    case 'render_partial.action_view': var eventType = 'render-partial'; break;
-                    case 'render_template.action_view': var eventType = 'render-template'; break;
-                    case 'process_action.action_controller': var eventType = 'process-action'; break;
-                    case 'rack-profiler.step': var eventType = 'step'; break;
-                    default: var eventType = 'other'
+                    case 'sql.active_record':                eventType = 'sql'; break;
+                    case 'render_partial.action_view':       eventType = 'render-partial'; break;
+                    case 'render_template.action_view':      eventType = 'render-template'; break;
+                    case 'process_action.action_controller': eventType = 'process-action'; break;
+                    case 'rack-profiler.step':               eventType = 'step'; break;
+                    default:                                 eventType = 'other'
                   }
 
                   var stepEvent = {
@@ -274,7 +275,7 @@
                     duration:  event.duration.toFixed(2),
                     percent:   ( event.duration / rootEvent.duration * 100 ).toFixed(2),
                     fromStart: ( ( event.start - rootEvent.start ) * 1000 ).toFixed(2),
-                    payload:   Object.keys(event.payload).map(function(key) {
+                    payload:   Object.keys( event.payload ).map( function( key ) {
                       return { key: key, value: event.payload[key] }
                     }),
                     fromStartPercent: ( ( event.start - rootEvent.start ) /
@@ -290,7 +291,7 @@
               }
 
               renderEvents( data.events )
-              $("#query_count").html(queryCount)
+              $("#query_count").html( queryCount )
             })
               .fail(function( _, __, error ) { alert( "Request failed with: " + error ) })
         })
