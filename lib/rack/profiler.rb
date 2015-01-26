@@ -33,7 +33,7 @@ module Rack
       def render_dashboard
         dashboard = ::File.expand_path( '../../public/rack-profiler.html', ::File.dirname( __FILE__ ) )
         body      = ::File.open(dashboard, ::File::RDONLY)
-        [200, { 'Content-Type' => 'text/html', 'Cache-Control' => 'public, max-age=86400' }, body]
+        [200, { 'Content-Type' => 'text/html' }, body]
       end
 
       def subscribe(name)
