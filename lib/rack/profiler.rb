@@ -73,6 +73,7 @@ module Rack
         Profiler.step('total_time') do
           status, headers, body = @app.call(env)
         end
+        body.close if body.respond_to?(:close)
         [200, { 'Content-Type' => 'application/json' }, [{ events: nested_events, response: { status: status, headers: headers, body: body } }.to_json]]
       else
         @status, @headers, @body = @app.call(env)
