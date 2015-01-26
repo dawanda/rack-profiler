@@ -44,17 +44,16 @@ module Rack
       def subscriptions
         @subscriptions || []
       end
-
-      private
     end
 
     extend ClassMethods
 
+    # Subscribe to interesting events
     subscribe('sql.active_record')
-    subscribe('rack-profiler.step')
     subscribe('render_template.action_view')
     subscribe('render_partial.action_view')
     subscribe('process_action.action_controller')
+    subscribe('rack-profiler.step')
 
     attr_reader :events
 
