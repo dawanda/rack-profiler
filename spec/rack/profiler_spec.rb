@@ -1,21 +1,19 @@
 require 'spec_helper'
 
 describe Rack::Profiler do
-  before(:each) do
-    Rack::Profiler.reset_events!
+  let(:profiler) { Rack::Profiler.new(nil) }
+
+  def trigger_dummy_event(name, payload = {})
+    ActiveSupport::Notifications.instrument(name, payload) do
+      "do stuff"
+    end
   end
 
   it 'has a version number' do
     expect(Rack::Profiler::VERSION).not_to be nil
   end
 
-  describe ".events" do
-    it "is an array" do
-      expect(Rack::Profiler.events).to be_a(Array)
-    end
-  end
-
-  describe ".nested_events" do
+  describe :nested_events do
     it "returns events properly nested" do
       evt1 = { start: 1, finish: 10 }
       evt2 = { start: 2, finish: 3 }
@@ -23,8 +21,8 @@ describe Rack::Profiler do
       evt4 = { start: 5, finish: 8 }
       evt5 = { start: 9, finish: 10 }
       evts = [evt1, evt2, evt3, evt4, evt5]
-      evts.each { |evt| Rack::Profiler.events << evt }
-      nested = Rack::Profiler.nested_events
+      allow(profiler).to receive(:events).and_return(evts)
+      nested = profiler.nested_events
       expect(nested.first).to be(evt1)
       expect(evt1[:children].first).to be(evt2)
       expect(evt1[:children][1]).to be(evt3)
@@ -33,32 +31,26 @@ describe Rack::Profiler do
     end
   end
 
-  describe ".subscribe" do
-    def trigger_dummy_event(name, payload = {})
-      ActiveSupport::Notifications.instrument(name, payload) do
-        "do stuff"
-      end
-    end
-
+  describe :subscribe do
     before do
-      Rack::Profiler.subscribe('foo')
+      profiler.subscribe('foo')
     end
 
     it "subscribe to event populating the event list" do
       trigger_dummy_event('foo')
-      event = Rack::Profiler.events.last
+      event = profiler.events.last
       expect(event[:name]).to eq('foo')
     end
 
     it "populate event with the proper keys" do
       trigger_dummy_event('foo')
-      event = Rack::Profiler.events.last
+      event = profiler.events.last
       expect(event.keys).to include(:id, :name, :start, :finish, :duration, :payload, :backtrace)
     end
 
     it "adds the backtrace" do
       trigger_dummy_event('foo')
-      event = Rack::Profiler.events.last
+      event = profiler.events.last
       expect(event[:backtrace].any? do |line|
         line.include?("trigger_dummy_event")
       end).to be(true)
@@ -69,7 +61,7 @@ describe Rack::Profiler do
         !line.include?("trigger_dummy_event")
       end
       trigger_dummy_event('foo')
-      event = Rack::Profiler.events.last
+      event = profiler.events.last
       expect(event[:backtrace].any? do |line|
         line.include?("trigger_dummy_event")
       end).to be(false)
@@ -80,8 +72,18 @@ describe Rack::Profiler do
 
     it "adds the payload" do
       trigger_dummy_event('foo', bar: 'baz')
-      event = Rack::Profiler.events.last
+      event = profiler.events.last
       expect(event[:payload]).to eq(bar: 'baz')
+    end
+  end
+
+  describe ".subscribe" do
+    it "causes any newly created instance to subscribe to the given event" do
+      Rack::Profiler.subscribe('bar')
+      profiler = Rack::Profiler.new(nil)
+      trigger_dummy_event('bar')
+      event = profiler.events.last
+      expect(event[:name]).to eq('bar')
     end
   end
 
