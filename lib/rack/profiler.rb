@@ -73,8 +73,7 @@ module Rack
         Profiler.step('total_time') do
           status, headers, body = @app.call(env)
         end
-        body.close if body.respond_to?(:close)
-        [200, { 'Content-Type' => 'application/json' }, [{ events: nested_events, response: { status: status, headers: headers, body: body } }.to_json]]
+        [200, { 'Content-Type' => 'application/json' }, [{ events: nested_events, response: { status: status, headers: headers, body: stringify_body(body) } }.to_json]]
       else
         @status, @headers, @body = @app.call(env)
       end
@@ -134,6 +133,13 @@ module Rack
       else
         backtrace.select(&self.class.backtrace_filter)
       end
+    end
+
+    def stringify_body(body)
+      body.close if body.respond_to?(:close)
+      str = ""
+      body.each {|part| str << part }
+      str
     end
   end
 end
