@@ -13,21 +13,44 @@
         outline: none;
       }
 
-      .pr-steps td.pr-depth-1:before  { content: "\2043"; padding: 0 0.5em 0 1em }
-      .pr-steps td.pr-depth-2:before  { content: "\2043"; padding: 0 0.5em 0 2em }
-      .pr-steps td.pr-depth-3:before  { content: "\2043"; padding: 0 0.5em 0 3em }
-      .pr-steps td.pr-depth-4:before  { content: "\2043"; padding: 0 0.5em 0 4em }
-      .pr-steps td.pr-depth-5:before  { content: "\2043"; padding: 0 0.5em 0 5em }
-      .pr-steps td.pr-depth-6:before  { content: "\2043"; padding: 0 0.5em 0 6em }
-      .pr-steps td.pr-depth-7:before  { content: "\2043"; padding: 0 0.5em 0 7em }
-      .pr-steps td.pr-depth-8:before  { content: "\2043"; padding: 0 0.5em 0 8em }
-      .pr-steps td.pr-depth-9:before  { content: "\2043"; padding: 0 0.5em 0 9em }
-      .pr-steps td.pr-depth-10:before { content: "\2043"; padding: 0 0.5em 0 10em }
+      .response-info {
+        margin-bottom: 1em;
+      }
+
       .pr-steps td:first-child {
         width: 800px;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
+      }
+
+      .step-bar {
+        display: inline-block;
+        background: #5bc0de;
+        position: relative;
+        box-sizing: border-box;
+        margin-top: 0.2em;
+        border-radius: 2px;
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .15)
+      }
+
+      .step-bar.step-type-sql {
+        background: #f0ad4e;
+      }
+
+      .step-bar.step-type-render-partial, .step-bar.step-type-render-template {
+        background: #5cb85c;
+      }
+
+      .key-value-list {
+        margin: 1em 0;
+        padding: 1em;
+        font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+        font-size: 13px;
+        background-color: #f5f5f5;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+
+      .key-value-list li {
+        list-style: none;
       }
 
       .pr-queries th {
@@ -126,21 +149,41 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
 
     <script type="text/template" id="response_tmpl">
-      <strong>Status:</strong> {{ status }}<br>
-      <strong>Headers:</strong>
-      <ul>
-      {{ #formatted_headers }}
-        <li>{{.}}</li>
-      {{ /formatted_headers }}
-      </ul>
-      <strong>Body:</strong>
-      <details><summary>Toggle</summary><pre>{{ body }}</pre></details>
+      <div class='response-info'>
+        <strong>Status:</strong> {{ status }}<br>
+      </div>
+      <div class='response-info'>
+        <strong>Headers:</strong>
+        <details>
+          <summary>Toggle</summary>
+          <ul class='key-value-list'>
+          {{ #headers }}
+            <li><strong>{{ key }}:</strong> {{ value }}</li>
+          {{ /headers }}
+          </ul>
+        </details>
+      </div>
+      <div class='response-info'>
+        <strong>Body:</strong>
+        <details><summary>Toggle</summary>
+        <pre>{{ body }}</pre></details>
+      </div>
     </script>
 
     <script type="text/template" id="step_tmpl">
       <tr>
-        <td class='pr-depth-{{ depth }}'>
-          <span class="step-name">{{ name }}</span>
+        <td>
+          <details><summary>{{ name }}</summary>
+            <ul class='key-value-list'>
+            {{ #payload }}
+              {{ #value }}<li><strong>{{ key }}:</strong> {{ value }}</li>{{/value }}
+            {{ /payload }}
+            </ul>
+          </details>
+          <span class="step-name step-bar step-type-{{ type }}"
+            style="width: {{ percent }}%; left: {{ fromStartPercent }}%">
+            &nbsp;
+          </span>
         </td>
         <td>{{ duration }}ms</td>
         <td>{{ percent }}%</td>
@@ -190,19 +233,19 @@
               var rootEvent  = data.events[0],
                   queryCount = 0
 
-              var formattedHeaders = Object.keys(data.response.headers).map(function(key) {
-                return key + ": " + data.response.headers[key]
+              var headersKeyVal = Object.keys(data.response.headers).map(function(key) {
+                return { key: key, value: data.response.headers[key] }
               })
-              $.extend(data.response, { formatted_headers: formattedHeaders })
+              var formatted_response = $.extend({}, data.response, { headers: headersKeyVal })
 
-              $('#response').html( Mustache.render(responseTmpl, data.response) )
+              $('#response').html( Mustache.render(responseTmpl, formatted_response) )
               if (data.response.status < 400) {
                 $('#response_panel').removeClass('panel-danger').addClass('panel-success')
               } else {
                 $('#response_panel').removeClass('panel-success').addClass('panel-danger')
               }
 
-              var renderEvents = function( events, depth ) {
+              var renderEvents = function( events ) {
                 events.map( function( event ) {
                   if ( event.name == "sql.active_record" ) {
                     var sqlEvent = {
@@ -214,28 +257,42 @@
                     }
                     $(".pr-queries tbody").append( Mustache.render(queryTmpl, sqlEvent) )
                     queryCount++
-                  } else if ( event.name == "rack-profiler.step" ) {
-                    var stepEvent = {
-                      name:      event.payload.step_name,
-                      duration:  event.duration.toFixed(2),
-                      percent:   ( event.duration / rootEvent.duration * 100 ).toFixed(2),
-                      fromStart: ( ( event.start - rootEvent.start ) * 1000 ).toFixed(2),
-                      depth:     depth
-                    }
-                    $(".pr-steps tbody").append( Mustache.render(stepTmpl, stepEvent) )
                   }
+
+                  switch ( event.name ) {
+                    case 'sql.active_record': var eventType = 'sql'; break;
+                    case 'render_partial.action_view': var eventType = 'render-partial'; break;
+                    case 'render_template.action_view': var eventType = 'render-template'; break;
+                    case 'process_action.action_controller': var eventType = 'process-action'; break;
+                    case 'rack-profiler.step': var eventType = 'step'; break;
+                    default: var eventType = 'other'
+                  }
+
+                  var stepEvent = {
+                    name:      event.payload.step_name || event.name,
+                    type:      eventType,
+                    duration:  event.duration.toFixed(2),
+                    percent:   ( event.duration / rootEvent.duration * 100 ).toFixed(2),
+                    fromStart: ( ( event.start - rootEvent.start ) * 1000 ).toFixed(2),
+                    payload:   Object.keys(event.payload).map(function(key) {
+                      return { key: key, value: event.payload[key] }
+                    }),
+                    fromStartPercent: ( ( event.start - rootEvent.start ) /
+                      ( rootEvent.finish - rootEvent.start ) ) * 100
+                  }
+                  $(".pr-steps tbody").append( Mustache.render( stepTmpl, stepEvent ) )
 
                   // Recurse on children
                   if ( event.children ) {
-                    renderEvents( event.children, depth + 1 )
+                    renderEvents( event.children )
                   }
                 })
               }
 
-              renderEvents( data.events, 0 )
+              renderEvents( data.events )
               $("#query_count").html(queryCount)
             })
-            .fail(function( _, __, error ) { alert( "Request failed with: " + error ) })
+              .fail(function( _, __, error ) { alert( "Request failed with: " + error ) })
         })
 
       })();
