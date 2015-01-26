@@ -224,6 +224,12 @@
               type = $("#req-method").val() || "GET",
               data = $("#req-data").val()
 
+          var exposeKeyValues = function( obj ) {
+            return Object.keys( obj ).map( function( key ) {
+              return { key: key, value: JSON.stringify( obj[key], null, 1 ) }
+            })
+          }
+
           $(".pr-queries tbody").html('')
           $(".pr-steps tbody").html('')
 
@@ -233,9 +239,7 @@
 
               var rootEvent     = data.events[0],
                   queryCount    = 0,
-                  headersKeyVal = Object.keys( data.response.headers ).map( function( key ) {
-                    return { key: key, value: data.response.headers[key] }
-                  }),
+                  headersKeyVal = exposeKeyValues( data.response.headers ),
                   responseWrap  = $.extend( {}, data.response, { headers: headersKeyVal } )
 
               $('#response').html( Mustache.render( responseTmpl, responseWrap ) )
@@ -275,9 +279,7 @@
                     duration:  event.duration.toFixed(2),
                     percent:   ( event.duration / rootEvent.duration * 100 ).toFixed(2),
                     fromStart: ( ( event.start - rootEvent.start ) * 1000 ).toFixed(2),
-                    payload:   Object.keys( event.payload ).map( function( key ) {
-                      return { key: key, value: event.payload[key] }
-                    }),
+                    payload:   exposeKeyValues( event.payload ),
                     fromStartPercent: ( ( event.start - rootEvent.start ) /
                       ( rootEvent.finish - rootEvent.start ) ) * 100
                   }
