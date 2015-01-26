@@ -6,11 +6,11 @@ require 'rack/profiler/version'
 Gem::Specification.new do |spec|
   spec.name          = "rack-profiler"
   spec.version       = Rack::Profiler::VERSION
-  spec.authors       = ["Luca Ongaro"]
+  spec.authors       = ["Luca Ongaro", "Luca Tironi"]
   spec.email         = ["lukeongaro@gmail.com"]
-  spec.summary       = "simple profiler for Rack applications"
-  spec.description   = "simple profiler for Rack applications"
-  spec.homepage      = ""
+  spec.summary       = "A simple profiler for Rack applications"
+  spec.description   = "A simple profiler for Rack applications, only depending on ActiveSupport::Notifications"
+  spec.homepage      = "https://github.com/dawanda/rack-profiler"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
