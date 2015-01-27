@@ -53,6 +53,7 @@ module Rack
     subscribe('render_template.action_view')
     subscribe('render_partial.action_view')
     subscribe('process_action.action_controller')
+    subscribe('rack-profiler.total_time')
     subscribe('rack-profiler.step')
 
     attr_reader :events
@@ -70,7 +71,7 @@ module Rack
       if req.path == Profiler.dashboard_path
         Profiler.render_dashboard
       elsif req.params.has_key?('rack-profiler')
-        Profiler.step('total_time') do
+        ActiveSupport::Notifications.instrument('rack-profiler.total_time') do
           status, headers, body = @app.call(env)
         end
         [ 200,

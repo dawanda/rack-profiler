@@ -241,8 +241,11 @@
             .done(function( data, status, xhr ) {
               $(".stats").show()
 
-              var rootEvent     = data.events[0],
-                  queryCount    = 0,
+              var rootEvent = data.events.filter(function(event) {
+                return event.name == 'rack-profiler.total_time'
+              })[0]
+
+              var queryCount    = 0,
                   headersKeyVal = exposeKeyValues( data.response.headers ),
                   responseWrap  = $.extend( {}, data.response, { headers: headersKeyVal } )
 
@@ -274,6 +277,7 @@
                     case 'render_template.action_view':      eventType = 'render-template'; break;
                     case 'process_action.action_controller': eventType = 'process-action'; break;
                     case 'rack-profiler.step':               eventType = 'step'; break;
+                    case 'rack-profiler.total_time':         eventType = 'total-time'; break;
                     default:                                 eventType = 'other'
                   }
 
