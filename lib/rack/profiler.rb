@@ -1,3 +1,5 @@
+require "rack"
+require "rack/request"
 require "rack/profiler/version"
 require "active_support/notifications"
 
@@ -6,22 +8,12 @@ module Rack
     class DummyError < StandardError; end
 
     module ClassMethods
-      attr_reader :backtrace_filter
-
       def configure(&block)
-        instance_exec(self, &block)
+        block.call(config)
       end
 
-      def filter_backtrace(&block)
-        @backtrace_filter = block
-      end
-
-      def dashboard_path=(path)
-        @dashboard_path = path
-      end
-
-      def dashboard_path
-        @dashboard_path || '/rack-profiler'
+      def config
+        @config ||= Configuration.new
       end
 
       def step(name, payload = {})
@@ -29,38 +21,42 @@ module Rack
           yield
         end
       end
+    end
 
-      def render_dashboard
-        dashboard = ::File.expand_path( '../../public/rack-profiler.html', ::File.dirname( __FILE__ ) )
-        body      = ::File.open(dashboard, ::File::RDONLY)
-        [200, { 'Content-Type' => 'text/html' }, body]
+    class Configuration
+      attr_reader :subscriptions, :backtrace_filter
+      attr_accessor :dashboard_path
+
+      DEFAULT_SUBSCRIPTIONS = ['sql.active_record',
+                               'render_template.action_view',
+                               'render_partial.action_view',
+                               'process_action.action_controller',
+                               'rack-profiler.total_time',
+                               'rack-profiler.step']
+
+      def initialize
+        @subscriptions  = DEFAULT_SUBSCRIPTIONS.clone
+        @dashboard_path = '/rack-profiler'
       end
 
-      def subscribe(name)
-        (@subscriptions ||= []) << name
+      def subscribe(*names)
+        names.each { |name| @subscriptions << name }
         @subscriptions.uniq!
       end
 
-      def subscriptions
-        @subscriptions || []
+      def filter_backtrace(&block)
+        @backtrace_filter = block
       end
     end
 
     extend ClassMethods
 
-    # Subscribe to interesting events
-    subscribe('sql.active_record')
-    subscribe('render_template.action_view')
-    subscribe('render_partial.action_view')
-    subscribe('process_action.action_controller')
-    subscribe('rack-profiler.total_time')
-    subscribe('rack-profiler.step')
-
     attr_reader :events
 
     def initialize(app)
-      subscribe_all_events
-      @app = app
+      subscribe_to_all
+      @events = []
+      @app    = app
     end
 
     def call(env)
@@ -68,8 +64,8 @@ module Rack
       status, headers, body = [nil, nil, nil]
       req = Rack::Request.new(env)
 
-      if req.path == Profiler.dashboard_path
-        Profiler.render_dashboard
+      if req.path == config.dashboard_path
+        render_dashboard
       elsif req.params.has_key?('rack-profiler')
         ActiveSupport::Notifications.instrument('rack-profiler.total_time') do
           status, headers, body = @app.call(env)
@@ -105,10 +101,21 @@ module Rack
       end
     end
 
+    def config
+      self.class.config
+    end
+
     private
 
-    def subscribe_all_events
-      self.class.subscriptions.each do |event|
+    def render_dashboard
+      dashboard = ::File.expand_path( '../../public/rack-profiler.html', ::File.dirname( __FILE__ ) )
+      body      = ::File.open(dashboard, ::File::RDONLY)
+      [200, { 'Content-Type' => 'text/html' }, body]
+    end
+
+    def subscribe_to_all
+      # Subscribe to interesting events
+      config.subscriptions.each do |event|
         subscribe(event)
       end
     end
@@ -122,10 +129,10 @@ module Rack
     end
 
     def filtered_backtrace(backtrace)
-      if self.class.backtrace_filter.nil?
+      if config.backtrace_filter.nil?
         backtrace
       else
-        backtrace.select(&self.class.backtrace_filter)
+        backtrace.select(&config.backtrace_filter)
       end
     end
 

@@ -67,9 +67,9 @@ end
 You can configure `Rack::Profiler` to subscribe to more notifications:
 
 ```ruby
-Rack::Profiler.configure do |profiler|
-  # Subscribe to template rendering in a Rails app
-  profiler.subscribe('deliver.action_mailer')
+Rack::Profiler.configure do |config|
+  # Subscribe to email delivery in a Rails app
+  config.subscribe('deliver.action_mailer')
 end
 ```
 
@@ -77,9 +77,9 @@ You can also specify a backtrace filter to exclude lines that are not
 interesting:
 
 ```ruby
-Rack::Profiler.configure do |profiler|
+Rack::Profiler.configure do |config|
   # Exclude gems from the backtrace
-  profiler.filter_backtrace { |line| !line.include? '/gems/' }
+  config.filter_backtrace { |line| !line.include? '/gems/' }
 end
 ```
 
