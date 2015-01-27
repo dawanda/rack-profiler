@@ -27,7 +27,7 @@ the [`Rack::Profiler.step`](#custom-steps).
 JSON response with the results. It also exposes a simple web dashboard to directly
 issue HTTP requests to your application and see the results of the profiling.
 
-![Rack::Profiler Web Dashboard](http://i.imgur.com/tcUSYle.png)
+![Rack::Profiler Web Dashboard](http://i.imgur.com/tcUSYle.png?1)
 
 ## Installation
 
