@@ -14,24 +14,6 @@ describe Rack::Profiler do
   end
 
   context "ClassMethods" do
-    describe :nested_events do
-      it "returns events properly nested" do
-        evt1 = { start: 1, finish: 10 }
-        evt2 = { start: 2, finish: 3 }
-        evt3 = { start: 4, finish: 8 }
-        evt4 = { start: 5, finish: 8 }
-        evt5 = { start: 9, finish: 10 }
-        evts = [evt1, evt2, evt3, evt4, evt5]
-        allow(profiler).to receive(:events).and_return(evts)
-        nested = profiler.nested_events
-        expect(nested.first).to be(evt1)
-        expect(evt1[:children].first).to be(evt2)
-        expect(evt1[:children][1]).to be(evt3)
-        expect(evt3[:children].first).to be(evt4)
-        expect(evt1[:children].last).to be(evt5)
-      end
-    end
-
     describe :subscribe do
       before do
         profiler.subscribe("foo")

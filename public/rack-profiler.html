@@ -289,10 +289,6 @@
                   }
                   $(".pr-steps tbody").append( Mustache.render( stepTmpl, stepEvent ) )
 
-                  // Recurse on children
-                  if ( event.children ) {
-                    renderEvents( event.children )
-                  }
                 })
               }
 

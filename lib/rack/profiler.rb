@@ -75,7 +75,7 @@ module Rack
         end
         [ 200,
           { 'Content-Type' => 'application/json' },
-          [ { events:  nested_events,
+          [ { events:   events.sort_by { |event| event[:start] },
               response: {
                 status:  status,
                 headers: headers,
@@ -104,28 +104,12 @@ module Rack
       end
     end
 
-    def nested_events
-      events.sort_by { |evt| evt[:start] }.reduce([]) do |list, evt|
-        nest_event(list, list, evt)
-      end
-    end
-
     private
 
     def subscribe_all_events
       self.class.subscriptions.each do |event|
         subscribe(event)
       end
-    end
-
-    def nest_event(list, children, evt)
-      previous = children.last
-      if previous && evt[:finish] <= previous[:finish]
-        nest_event(list, previous[:children] ||= [], evt)
-      else
-        children << evt
-      end
-      list
     end
 
     def tap_backtrace
