@@ -1,17 +1,25 @@
 # Rack::Profiler
 
 Simple profiler for Rack applications (Sinatra and Ruby on Rails for example).
+It helps providing an answer to common questions like:
 
-`Rack::Profiler` uses the [Active Support Instrumentation API](http://guides.rubyonrails.org/active_support_instrumentation.html)
-and subscribes to the following hooks:
+  - Where is time spent in requests to my app?
+  - Which SQL queries are executed by `ActiveRecord`?
+  - Which are the parts of my app's request flow that need optimization?
+
+And more.
+
+`Rack::Profiler` uses the [Active Support Instrumentation
+API](http://guides.rubyonrails.org/active_support_instrumentation.html) and
+subscribes by default to the following hooks:
 
   * [sql.active_record](http://guides.rubyonrails.org/active_support_instrumentation.html#sql-active-record)
   * [render_template.action_view](http://guides.rubyonrails.org/active_support_instrumentation.html#render_template.action_view)
   * [render_partial.action_view](http://guides.rubyonrails.org/active_support_instrumentation.html#render_partial.action_view)
   * [process_action.action_controller](http://guides.rubyonrails.org/active_support_instrumentation.html#process_action.action_controller)
 
-You can also define your own events, by wrapping your code with the
-[`Rack::Profiler.step`](#custom-steps).
+On top of this, you can also define your own events, by wrapping your code with
+the [`Rack::Profiler.step`](#custom-steps).
 
 `Rack::Profiler` is easy to integrate in any Rack application and it produces a
 JSON response with the results. It also exposes a simple web dashboard to directly
@@ -24,8 +32,6 @@ Add this line to your application's Gemfile:
 ```ruby
 gem 'rack-profiler'
 ```
-
-*You might want to put the gem in the development group if you are using Rails.*
 
 And then execute:
 
@@ -56,6 +62,7 @@ module YourApp
   class Application < Rails::Application
 
     # ...
+
     config.middleware.insert_before Rack::Runtime, Rack::Profiler
 
   end
