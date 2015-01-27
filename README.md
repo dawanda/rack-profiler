@@ -1,5 +1,7 @@
 # Rack::Profiler
 
+[![Build Status](https://travis-ci.org/dawanda/rack-profiler.svg)](https://travis-ci.org/dawanda/rack-profiler)
+
 Simple profiler for Rack applications (Sinatra and Ruby on Rails for example).
 It helps providing an answer to common questions like:
 
