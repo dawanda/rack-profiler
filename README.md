@@ -75,7 +75,8 @@ end
 
 ## Configuration
 
-You can configure `Rack::Profiler` passing a block to `use`. In the block you can subscribe to more notifications and change some defaults:
+You can configure `Rack::Profiler` passing a block to `use`. In the block you
+can subscribe to more notifications and change some defaults:
 
 ```ruby
 use Rack::Profiler do |profiler|
@@ -85,6 +86,38 @@ use Rack::Profiler do |profiler|
   # You can also exclude lines that are not interesting from the backtrace
   # For example, exclude gems from the backtrace:
   profiler.filter_backtrace { |line| !line.include? '/gems/' }
+end
+```
+
+## Authorization
+
+You typically *do not want to expose profiling publicly*, as it may contain
+sensible information about your data and app. To protect your data, the easiest
+option is to only enable the profiler in the development environment:
+
+```ruby
+if ENV['RACK_ENV'] == 'development'
+  require 'rack/profiler'
+  use Rack::Profiler
+end
+```
+
+Sometimes though, you might want to run the profiler in the production
+environment, in order to get results in a real setting (including caching and
+optimizations). In this case, you can configure the authorization logic:
+
+```ruby
+use Rack::Profiler do |profiler|
+  profiler.authorize do |env|
+    # env is the Rack environment of the request. This block should return a
+    # truthy value when the request is allowed to be profiled, falsy otherwise.
+    env['rack-profiler-enabled'] == true
+  end
+end
+
+# ...then in your app:
+before do
+  env['rack-profiler-enabled'] = true if current_user.admin?
 end
 ```
 
