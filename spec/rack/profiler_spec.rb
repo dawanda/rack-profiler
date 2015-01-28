@@ -148,11 +148,14 @@ describe Rack::Profiler do
 
     context "when the path is config.dashboard_path" do
       it "renders dashboard" do
-        expect(profiler).to receive(:render_dashboard)
-        profiler.call env.merge(
+        path = ::File.expand_path('../../public/rack-profiler.html',
+                                     ::File.dirname( __FILE__ ) )
+        status, header, body = profiler.call env.merge(
           "PATH_INFO"    => profiler.dashboard_path,
           "REQUEST_PATH" => profiler.dashboard_path
         )
+        expect(body).to be_a(File)
+        expect(body.path).to eq(path)
       end
     end
 
