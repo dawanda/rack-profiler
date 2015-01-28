@@ -96,7 +96,7 @@
             <input type="text" id="req-path" class="form-control" placeholder="Path">
           </div>
           <div class="col-md-6">
-            <input type="text" id="req-data" class="form-control" placeholder="Data">
+            <input type="text" id="req-data" class="form-control" placeholder="Data (as query string/form data)">
           </div>
           <div class="col-md-1">
             <button type="submit" class="btn btn-success">Profile</button>
@@ -241,7 +241,7 @@
           $(".pr-queries tbody").html('')
           $(".pr-steps tbody").html('')
 
-          $.ajax( path, { type: type, data: $.extend(data, { "rack-profiler": 1 }) } )
+          $.ajax( path, { type: type, data: ["rack-profiler", data].join("&") } )
             .done(function( data, status, xhr ) {
               $(".stats").show()
 
