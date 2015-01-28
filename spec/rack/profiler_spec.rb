@@ -16,13 +16,27 @@ describe Rack::Profiler do
 
   describe :initialize do
     it "subscribes to all subscriptions" do
-      config = Rack::Profiler::Configuration.new
-      config.subscribe("bar")
-      allow(Rack::Profiler).to receive(:config).and_return(config)
-
-      profiler = Rack::Profiler.new(nil)
+      profiler = Rack::Profiler.new(nil) do |config|
+        config.subscribe("bar")
+      end
       trigger_dummy_event("bar")
       expect(profiler.events.last[:name]).to eq("bar")
+    end
+
+    it "executes the given block passing self" do
+      block_arg = nil
+      profiler = Rack::Profiler.new(nil) do |p|
+        block_arg = p
+      end
+      expect(block_arg).to be(profiler)
+    end
+
+    it "sets the correct defaults" do
+      expect(profiler.dashboard_path).to eq('/rack-profiler')
+      expect(profiler.backtrace_filter).to be_nil
+      expect(profiler.subscriptions).to include(
+        *Rack::Profiler::DEFAULT_SUBSCRIPTIONS
+      )
     end
   end
 
@@ -52,7 +66,7 @@ describe Rack::Profiler do
     end
 
     it "filters the backtrace if a filter was provided" do
-      Rack::Profiler.config.filter_backtrace do |line|
+      profiler.filter_backtrace do |line|
         !line.include?("trigger_dummy_event")
       end
       trigger_dummy_event("foo")
@@ -69,6 +83,23 @@ describe Rack::Profiler do
       trigger_dummy_event("foo", bar: "baz")
       event = profiler.events.last
       expect(event[:payload]).to eq(bar: "baz")
+    end
+
+    it "accepts more than one subscription" do
+      profiler.subscribe('baz', 'qux')
+      trigger_dummy_event('baz')
+      event = profiler.events.last
+      expect(event[:name]).to eq('baz')
+      trigger_dummy_event('qux')
+      event = profiler.events.last
+      expect(event[:name]).to eq('qux')
+    end
+
+    it "prevents duplicate subscriptions" do
+      profiler.subscribe('baz')
+      profiler.subscribe('baz')
+      trigger_dummy_event('baz')
+      expect(profiler.events.size).to eq(1)
     end
   end
 
@@ -119,8 +150,8 @@ describe Rack::Profiler do
       it "renders dashboard" do
         expect(profiler).to receive(:render_dashboard)
         profiler.call env.merge(
-          "PATH_INFO"    => profiler.config.dashboard_path,
-          "REQUEST_PATH" => profiler.config.dashboard_path
+          "PATH_INFO"    => profiler.dashboard_path,
+          "REQUEST_PATH" => profiler.dashboard_path
         )
       end
     end
@@ -178,63 +209,12 @@ describe Rack::Profiler do
         "do stuff"
       end
     end
-  end
 
-  describe ".configure" do
-    it "executes the given block passing the configuration object" do
-      config_inside_block = nil
-      Rack::Profiler.configure do |c|
-        config_inside_block = c
+    it "returns whatever is returned by the block" do
+      returned = Rack::Profiler.step("xxx") do
+        "do stuff"
       end
-      expect(config_inside_block).to be(Rack::Profiler.config)
-    end
-  end
-
-  describe ".config" do
-    it "instantiates a Configuration object if there is none" do
-      Rack::Profiler.send(:instance_variable_set, :@config, nil)
-      expect(Rack::Profiler.config).to be_a(Rack::Profiler::Configuration)
-    end
-  end
-end
-
-describe Rack::Profiler::Configuration do
-  let(:config) { Rack::Profiler::Configuration.new }
-
-  it "has the correct defaults" do
-    expect(config.dashboard_path).to eq('/rack-profiler')
-    expect(config.backtrace_filter).to be_nil
-    expect(config.subscriptions).to include(
-      *Rack::Profiler::Configuration::DEFAULT_SUBSCRIPTIONS
-    )
-  end
-
-  describe :subscribe do
-    it "adds entries to subscriptions" do
-      config.subscribe('bar')
-      expect(config.subscriptions).to include('bar')
-    end
-
-    it "accepts more than one subscription" do
-      config.subscribe('bar', 'baz')
-      expect(config.subscriptions).to include('bar', 'baz')
-    end
-
-    it "does not add duplicates" do
-      config.subscribe('bar', 'bar')
-      expect(
-        config.subscriptions.count { |s| s == 'bar' }
-      ).to eq(1)
-    end
-  end
-
-  describe :filter_backtrace do
-    it "sets the backtrace_filter" do
-      config.filter_backtrace do |line|
-        line.include? 'foo'
-      end
-      filtered = ['foo', 'foobar', 'baz'].select(&config.backtrace_filter)
-      expect(filtered).to eq(['foo', 'foobar'])
+      expect(returned).to eq("do stuff")
     end
   end
 end

@@ -75,27 +75,18 @@ end
 
 ## Configuration
 
-You can configure `Rack::Profiler` to subscribe to more notifications:
+You can configure `Rack::Profiler` passing a block to `use`. In the block you can subscribe to more notifications and change some defaults:
 
 ```ruby
-Rack::Profiler.configure do |config|
+use Rack::Profiler do |profiler|
   # Subscribe to email delivery in a Rails app
-  config.subscribe('deliver.action_mailer')
+  profiler.subscribe('deliver.action_mailer')
+
+  # You can also exclude lines that are not interesting from the backtrace
+  # For example, exclude gems from the backtrace:
+  profiler.filter_backtrace { |line| !line.include? '/gems/' }
 end
 ```
-
-You can also specify a backtrace filter to exclude lines that are not
-interesting:
-
-```ruby
-Rack::Profiler.configure do |config|
-  # Exclude gems from the backtrace
-  config.filter_backtrace { |line| !line.include? '/gems/' }
-end
-```
-
-You can put these configurations in your `config.ru` for a Rack/Sinatra application
-or in an initializer `config/rack_profiler.rb` for Rails apps.
 
 ## Usage
 

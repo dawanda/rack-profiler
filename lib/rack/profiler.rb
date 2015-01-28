@@ -5,134 +5,107 @@ require "active_support/notifications"
 
 module Rack
   class Profiler
+
+    attr_reader :events, :backtrace_filter, :subscriptions
+    attr_accessor :dashboard_path
+
+    DEFAULT_SUBSCRIPTIONS = ['sql.active_record',
+                             'render_template.action_view',
+                             'render_partial.action_view',
+                             'process_action.action_controller',
+                             'rack-profiler.total_time',
+                             'rack-profiler.step']
+
     class DummyError < StandardError; end
 
-    module ClassMethods
-      def configure(&block)
-        block.call(config)
-      end
-
-      def config
-        @config ||= Configuration.new
-      end
-
-      def step(name, payload = {})
-        ActiveSupport::Notifications.instrument('rack-profiler.step', payload.merge(step_name: name)) do
-          yield
-        end
+    def self.step(name, payload = {})
+      ActiveSupport::Notifications.instrument('rack-profiler.step', payload.merge(step_name: name)) do
+        yield
       end
     end
 
-    class Configuration
-      attr_reader :subscriptions, :backtrace_filter
-      attr_accessor :dashboard_path
-
-      DEFAULT_SUBSCRIPTIONS = ['sql.active_record',
-                               'render_template.action_view',
-                               'render_partial.action_view',
-                               'process_action.action_controller',
-                               'rack-profiler.total_time',
-                               'rack-profiler.step']
-
-      def initialize
-        @subscriptions  = DEFAULT_SUBSCRIPTIONS.clone
-        @dashboard_path = '/rack-profiler'
-      end
-
-      def subscribe(*names)
-        names.each { |name| @subscriptions << name }
-        @subscriptions.uniq!
-      end
-
-      def filter_backtrace(&block)
-        @backtrace_filter = block
-      end
-    end
-
-    extend ClassMethods
-
-    attr_reader :events
-
-    def initialize(app)
-      subscribe_to_all
-      @events = []
-      @app    = app
+    def initialize(app, &block)
+      @events         = []
+      @subscriptions  = []
+      @dashboard_path = '/rack-profiler'
+      @app            = app
+      subscribe_to_default
+      block.call(self) if block_given?
     end
 
     def call(env)
       @events = []
-      status, headers, body = [nil, nil, nil]
       req = Rack::Request.new(env)
 
-      if req.path == config.dashboard_path
+      if req.path == dashboard_path
         render_dashboard
       elsif req.params.has_key?('rack-profiler')
-        ActiveSupport::Notifications.instrument('rack-profiler.total_time') do
-          status, headers, body = @app.call(env)
-        end
-        [ 200,
-          { 'Content-Type' => 'application/json' },
-          [ { events:   events.sort_by { |event| event[:start] },
-              response: {
-                status:  status,
-                headers: headers,
-                body:    stringify_body(body)
-              }
-            }.to_json ]
-        ]
+        render_profiler_results(env)
       else
-        @status, @headers, @body = @app.call(env)
+        @app.call(env)
       end
     end
 
-    def subscribe(event_name)
-      ActiveSupport::Notifications.subscribe(event_name) do |name, start, finish, id, payload|
-        backtrace = filtered_backtrace(tap_backtrace)
-        evt = {
-          id:        id,
-          name:      name,
-          start:     start.to_f,
-          finish:    finish.to_f,
-          duration:  (finish - start) * 1000,
-          payload:   payload,
-          backtrace: backtrace
-        }
-        (@events ||= []) << evt
+    def subscribe(*events)
+      events.each do |event_name|
+        next if @subscriptions.include?(event_name)
+        ActiveSupport::Notifications.subscribe(event_name) do |name, start, finish, id, payload|
+          evt = {
+            id:        id,
+            name:      name,
+            start:     start.to_f,
+            finish:    finish.to_f,
+            duration:  (finish - start) * 1000,
+            payload:   payload,
+            backtrace: filtered_backtrace(caller(1))
+          }
+          (@events ||= []) << evt
+        end
+        @subscriptions << event_name
       end
     end
 
-    def config
-      self.class.config
+    def filter_backtrace(&block)
+      @backtrace_filter = block
     end
 
     private
 
+    def render_profiler_results(env)
+      status, headers, body = [nil, nil, nil]
+      ActiveSupport::Notifications.instrument('rack-profiler.total_time') do
+        status, headers, body = @app.call(env)
+      end
+      [ 200,
+        { 'Content-Type' => 'application/json' },
+        [ { events:   events.sort_by { |event| event[:start] },
+            response: {
+            status:  status,
+            headers: headers,
+            body:    stringify_body(body)
+          }
+        }.to_json ]
+      ]
+    end
+
     def render_dashboard
-      dashboard = ::File.expand_path( '../../public/rack-profiler.html', ::File.dirname( __FILE__ ) )
+      dashboard = ::File.expand_path( '../../public/rack-profiler.html',
+                                     ::File.dirname( __FILE__ ) )
       body      = ::File.open(dashboard, ::File::RDONLY)
       [200, { 'Content-Type' => 'text/html' }, body]
     end
 
-    def subscribe_to_all
-      # Subscribe to interesting events
-      config.subscriptions.each do |event|
+    def subscribe_to_default
+      DEFAULT_SUBSCRIPTIONS.each do |event|
         subscribe(event)
       end
     end
 
-    def tap_backtrace
-      begin
-        raise DummyError.new
-      rescue DummyError => e
-        e.backtrace
-      end
-    end
-
     def filtered_backtrace(backtrace)
-      if config.backtrace_filter.nil?
+      if backtrace_filter.nil?
         backtrace
       else
-        backtrace.select(&config.backtrace_filter)
+        backtrace.select(&backtrace_filter)
       end
     end
 
