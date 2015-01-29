@@ -34,6 +34,7 @@ describe Rack::Profiler do
     it "sets the correct defaults" do
       expect(profiler.dashboard_path).to eq('/rack-profiler')
       expect(profiler.backtrace_filter).to be_nil
+      expect(profiler.authorizator).to be_nil
       expect(profiler.subscriptions).to include(
         *Rack::Profiler::DEFAULT_SUBSCRIPTIONS
       )
@@ -118,25 +119,25 @@ describe Rack::Profiler do
 
     let(:env) do
       {
-        "PATH_INFO" => "/",
-        "QUERY_STRING" => "",
-        "REMOTE_HOST" => "localhost",
-        "REQUEST_METHOD" => "GET",
-        "REQUEST_URI" => "http://localhost:3000/",
-        "SCRIPT_NAME" => "",
-        "SERVER_NAME" => "localhost",
-        "SERVER_PORT" => "3000",
-        "SERVER_PROTOCOL" => "HTTP/1.1",
-        "HTTP_HOST" => "localhost:3000",
-        "rack.version" => [1, 2],
-        "rack.input" => StringIO.new,
-        "rack.errors" => StringIO.new,
-        "rack.multithread" => true,
+        "PATH_INFO"         => "/",
+        "QUERY_STRING"      => "",
+        "REMOTE_HOST"       => "localhost",
+        "REQUEST_METHOD"    => "GET",
+        "REQUEST_URI"       => "http://localhost:3000/",
+        "SCRIPT_NAME"       => "",
+        "SERVER_NAME"       => "localhost",
+        "SERVER_PORT"       => "3000",
+        "SERVER_PROTOCOL"   => "HTTP/1.1",
+        "HTTP_HOST"         => "localhost:3000",
+        "rack.version"      => [1, 2],
+        "rack.input"        => StringIO.new,
+        "rack.errors"       => StringIO.new,
+        "rack.multithread"  => true,
         "rack.multiprocess" => false,
-        "rack.run_once" => false,
-        "rack.url_scheme" => "http",
-        "HTTP_VERSION" => "HTTP/1.1",
-        "REQUEST_PATH" => "/"
+        "rack.run_once"     => false,
+        "rack.url_scheme"   => "http",
+        "HTTP_VERSION"      => "HTTP/1.1",
+        "REQUEST_PATH"      => "/"
       }
     end
 
@@ -146,7 +147,7 @@ describe Rack::Profiler do
       expect(profiler.events).not_to include('xxx')
     end
 
-    context "when the path is config.dashboard_path" do
+    context "when the path is dashboard_path" do
       it "renders dashboard" do
         path = ::File.expand_path('../../public/rack-profiler.html',
                                      ::File.dirname( __FILE__ ) )
@@ -192,6 +193,27 @@ describe Rack::Profiler do
         expect(
           parsed_body['events'].map { |e| e['name'] }
         ).to include('rack-profiler.total_time', 'rack-profiler.step')
+      end
+
+      context "when authorization is configured" do
+        before do
+          profiler.authorize { |env| env['rack-profiler-allowed'] }
+        end
+
+        it "returns the original response if the request is not authorized" do
+          response = profiler.call(env_with_param)
+          expect(response).to eq(
+            [200, { 'X-My-Header' => 'foo' }, ['hello hello']]
+          )
+        end
+
+        it "returns the profiler results if the request is authorized" do
+          status, headers, body = profiler.call(
+            env_with_param.merge('rack-profiler-allowed' => true)
+          )
+          parsed_body = JSON.parse(body.join)
+          expect(parsed_body).to have_key('events')
+        end
       end
     end
   end

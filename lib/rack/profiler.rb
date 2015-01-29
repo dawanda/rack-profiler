@@ -1,12 +1,13 @@
 require "rack"
 require "rack/request"
+require "rack/auth/basic"
 require "rack/profiler/version"
 require "active_support/notifications"
 
 module Rack
   class Profiler
 
-    attr_reader :events, :backtrace_filter, :subscriptions
+    attr_reader :events, :backtrace_filter, :subscriptions, :authorizator
     attr_accessor :dashboard_path
 
     DEFAULT_SUBSCRIPTIONS = ['sql.active_record',
@@ -36,6 +37,7 @@ module Rack
     def call(env)
       @events = []
       req = Rack::Request.new(env)
+      env['rack-profiler'] = self
 
       if req.path == dashboard_path
         render_dashboard
@@ -69,6 +71,10 @@ module Rack
       @backtrace_filter = block
     end
 
+    def authorize(&block)
+      @authorizator = block
+    end
+
     private
 
     def render_profiler_results(env)
@@ -76,16 +82,16 @@ module Rack
       ActiveSupport::Notifications.instrument('rack-profiler.total_time') do
         status, headers, body = @app.call(env)
       end
-      [ 200,
-        { 'Content-Type' => 'application/json' },
-        [ { events:   events.sort_by { |event| event[:start] },
-            response: {
-            status:  status,
-            headers: headers,
-            body:    stringify_body(body)
-          }
-        }.to_json ]
-      ]
+      return [status, headers, body] unless authorized?(env)
+      results = {
+        events:   events.sort_by { |event| event[:start] },
+        response: {
+          status:  status,
+          headers: headers,
+          body:    stringify_body(body)
+        }
+      }
+      [200, { 'Content-Type' => 'application/json' }, [results.to_json]]
     end
 
     def render_dashboard
@@ -114,6 +120,10 @@ module Rack
       str = ""
       body.each { |part| str << part }
       str
+    end
+
+    def authorized?(env)
+      @authorizator.nil? || @authorizator.call(env)
     end
   end
 end

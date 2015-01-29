@@ -55,27 +55,33 @@ require 'rack/profiler'
 use Rack::Profiler
 ```
 
+NOTE: you should not expose the profiler publicly in the production environment,
+as it may contain sensitive information. Refer to the [`authorization
+section`](#authorization) on how to protect it.
+
 ### Rails
 
 You can add the `Rack::Profiler` middleware at the beginning of your `config.ru`
 like in the Rack/Sinatra installation or insert it in the middlewares stack configuration
-in the `application.rb`:
+in your `config/environments/<env>.rb` files:
 
 ```ruby
-module YourApp
-  class Application < Rails::Application
+YourApp.configure
+  # ...
 
-    # ...
-
-    config.middleware.insert_before Rack::Runtime, Rack::Profiler
-
-  end
+  config.middleware.insert 0, Rack::Profiler
 end
 ```
 
+NOTE: you should not expose the profiler publicly in the production environment,
+as it may contain sensitive information. Refer to the [`authorization
+section`](#authorization) for on to protect it.
+
 ## Configuration
 
-You can configure `Rack::Profiler` passing a block to `use`. In the block you can subscribe to more notifications and change some defaults:
+You can configure `Rack::Profiler` passing a block to `use` (or
+`middleware.insert` in Rails configuration). In the block you can subscribe to
+more notifications and change some defaults:
 
 ```ruby
 use Rack::Profiler do |profiler|
@@ -85,6 +91,39 @@ use Rack::Profiler do |profiler|
   # You can also exclude lines that are not interesting from the backtrace
   # For example, exclude gems from the backtrace:
   profiler.filter_backtrace { |line| !line.include? '/gems/' }
+end
+```
+
+## Authorization
+
+You typically *do not want to expose profiling publicly*, as it may contain
+sensible information about your data and app. To protect your data, the easiest
+option is to only enable the profiler in the development environment:
+
+```ruby
+if ENV['RACK_ENV'] == 'development'
+  require 'rack/profiler'
+  use Rack::Profiler
+end
+```
+
+Sometimes though, you might want to run the profiler in the production
+environment, in order to get results in a real setting (including caching and
+optimizations). In this case, you can configure your custom authorization logic,
+which can rely on the Rack env:
+
+```ruby
+use Rack::Profiler do |profiler|
+  profiler.authorize do |env|
+    # env is the Rack environment of the request. This block should return a
+    # truthy value when the request is allowed to be profiled, falsy otherwise.
+    env['rack-profiler-enabled'] == true
+  end
+end
+
+# ...then in your app:
+before do
+  env['rack-profiler-enabled'] = true if current_user.admin?
 end
 ```
 
