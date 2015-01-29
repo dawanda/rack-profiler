@@ -40,7 +40,7 @@ module Rack
       env['rack-profiler'] = self
 
       if req.path == dashboard_path
-        render_dashboard(env)
+        render_dashboard
       elsif req.params.has_key?('rack-profiler')
         render_profiler_results(env)
       else
@@ -94,7 +94,7 @@ module Rack
       [200, { 'Content-Type' => 'application/json' }, [results.to_json]]
     end
 
-    def render_dashboard(env)
+    def render_dashboard
       dashboard = ::File.expand_path( '../../public/rack-profiler.html',
                                      ::File.dirname( __FILE__ ) )
       body      = ::File.open(dashboard, ::File::RDONLY)
