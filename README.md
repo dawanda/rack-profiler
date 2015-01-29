@@ -66,7 +66,7 @@ like in the Rack/Sinatra installation or insert it in the middlewares stack conf
 in your `config/environments/<env>.rb` files:
 
 ```ruby
-YourApp.configure
+YourApp.configure do |config|
   # ...
 
   config.middleware.insert 0, Rack::Profiler
