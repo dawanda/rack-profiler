@@ -1,4 +1,4 @@
-Copyright (c) 2015 Luca Ongaro
+Copyright (c) 2015 DaWanda GmbH
 
 MIT License
 
