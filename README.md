@@ -1,6 +1,7 @@
 # Rack::Profiler
 
 [![Build Status](https://travis-ci.org/dawanda/rack-profiler.svg)](https://travis-ci.org/dawanda/rack-profiler) [![Code Climate](https://codeclimate.com/github/dawanda/rack-profiler/badges/gpa.svg)](https://codeclimate.com/github/dawanda/rack-profiler) [![Test Coverage](https://codeclimate.com/github/dawanda/rack-profiler/badges/coverage.svg)](https://codeclimate.com/github/dawanda/rack-profiler)
+[![Gem Version](https://badge.fury.io/rb/rack-profiler.svg)](http://badge.fury.io/rb/rack-profiler)
 
 Simple profiler for Rack applications (Sinatra and Ruby on Rails for example).
 It helps providing an answer to common questions like:
