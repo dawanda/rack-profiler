@@ -253,6 +253,13 @@
                   headersKeyVal = exposeKeyValues( data.response.headers ),
                   responseWrap  = $.extend( {}, data.response, { headers: headersKeyVal } )
 
+              try {
+                // pretty-print a JSON response
+                responseWrap.body = JSON.stringify(JSON.parse(responseWrap.body), null, 2);
+              } catch(e) {
+                // can't parse it as JSON, nevermind
+              };
+
               $('#response').html( Mustache.render( responseTmpl, responseWrap ) )
               if (data.response.status < 400) {
                 $('#response_panel').removeClass('panel-danger').addClass('panel-success')
