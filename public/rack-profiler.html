@@ -232,6 +232,9 @@
               type = $("#req-method").val() || "GET",
               data = $("#req-data").val()
 
+          path += path.indexOf("?") > -1 ? "&" : "?";
+          path += "rack-profiler";
+
           var exposeKeyValues = function( obj ) {
             return Object.keys( obj ).map( function( key ) {
               return { key: key, value: JSON.stringify( obj[key], null, 1 ) }
@@ -241,7 +244,7 @@
           $(".pr-queries tbody").html('')
           $(".pr-steps tbody").html('')
 
-          $.ajax( path, { type: type, data: ["rack-profiler", data].join("&") } )
+          $.ajax( path, { type: type, data: data } )
             .done(function( data, status, xhr ) {
               $(".stats").show()
 
