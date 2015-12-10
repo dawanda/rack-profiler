@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/dawanda/rack-profiler.svg)](https://travis-ci.org/dawanda/rack-profiler) [![Code Climate](https://codeclimate.com/github/dawanda/rack-profiler/badges/gpa.svg)](https://codeclimate.com/github/dawanda/rack-profiler) [![Test Coverage](https://codeclimate.com/github/dawanda/rack-profiler/badges/coverage.svg)](https://codeclimate.com/github/dawanda/rack-profiler)
 [![Gem Version](https://badge.fury.io/rb/rack-profiler.svg)](http://badge.fury.io/rb/rack-profiler)
 
-Simple profiler for Rack applications (Sinatra and Ruby on Rails for example).
+Simple profiler for Rack applications (Sinatra, Ruby on Rails, or Grape for example).
 It helps providing an answer to common questions like:
 
   - Where is time spent in requests to my app?
@@ -20,6 +20,11 @@ subscribes by default to the following hooks:
   * [render_template.action_view](http://guides.rubyonrails.org/active_support_instrumentation.html#render_template.action_view)
   * [render_partial.action_view](http://guides.rubyonrails.org/active_support_instrumentation.html#render_partial.action_view)
   * [process_action.action_controller](http://guides.rubyonrails.org/active_support_instrumentation.html#process_action.action_controller)
+
+`Rack::Profiler` also automatically subscribes to [Grape's](https://github.com/ruby-grape/grape) Active Support Instrumentation notifications
+  * [endpoint_run.grape](https://github.com/ruby-grape/grape#performance-monitoring)
+  * [endpoint_render.grape](https://github.com/ruby-grape/grape#performance-monitoring)
+  * [endpoint_run_filters.grape](https://github.com/ruby-grape/grape#performance-monitoring)
 
 On top of this, you can also define your own events, by wrapping your code with
 the [`Rack::Profiler.step`](#custom-steps).
@@ -46,7 +51,7 @@ Or install it yourself as:
 
     $ gem install rack-profiler
 
-### Rack/Sinatra
+### Rack/Sinatra/Grape
 
 In your `config.ru` use the `Rack::Profiler` middleware at the beginning of your
 middleware stack:

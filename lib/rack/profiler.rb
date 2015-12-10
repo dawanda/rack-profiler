@@ -3,6 +3,7 @@ require "rack/request"
 require "rack/auth/basic"
 require "rack/profiler/version"
 require "active_support/notifications"
+require "grape/endpoint"
 
 module Rack
   class Profiler
@@ -14,8 +15,12 @@ module Rack
                              'render_template.action_view',
                              'render_partial.action_view',
                              'process_action.action_controller',
+                             'endpoint_run.grape',
+                             'endpoint_render.grape',
+                             'endpoint_run_filters.grape',
                              'rack-profiler.total_time',
-                             'rack-profiler.step']
+                             'rack-profiler.step'
+                            ]
 
     class DummyError < StandardError; end
 
@@ -83,6 +88,10 @@ module Rack
         status, headers, body = @app.call(env)
       end
       return [status, headers, body] unless authorized?(env)
+      # Grape will inject the env into the payload.
+      # That'll cause problems with the json, so we'll just remove it.
+      events.each { |e| e[:payload].delete(:env) }
+
       results = {
         events:   events.sort_by { |event| event[:start] },
         response: {
