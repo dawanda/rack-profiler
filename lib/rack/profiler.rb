@@ -3,7 +3,7 @@ require "rack/request"
 require "rack/auth/basic"
 require "rack/profiler/version"
 require "active_support/notifications"
-require "grape/endpoint"
+require "rack/grape/endpoint_json"
 
 module Rack
   class Profiler
@@ -37,6 +37,10 @@ module Rack
       @app            = app
       subscribe_to_default
       block.call(self) if block_given?
+
+      if defined?(::Grape::Endpoint)
+        ::Grape::Endpoint.include Rack::Grape::EndpointJson
+      end
     end
 
     def call(env)
