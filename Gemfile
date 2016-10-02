@@ -4,3 +4,9 @@ source 'https://rubygems.org'
 gemspec
 
 gem 'codeclimate-test-reporter', group: :test, require: nil
+
+group :test do
+  gem "rack-test"
+  gem "grape"
+  gem "grape-entity"
+end
