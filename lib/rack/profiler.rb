@@ -38,7 +38,11 @@ module Rack
       subscribe_to_default
       block.call(self) if block_given?
 
-      if defined?(::Grape::Endpoint)
+      # This patch is required because of bug with Grape-Entity
+      # which is fixed in version 0.5.0
+      if (defined?(::Grape::Endpoint) &&
+          defined?(::GrapeEntity::VERSION) &&
+          Gem::Version.new(::GrapeEntity::VERSION) < Gem::Version.new("0.5.0"))
         ::Grape::Endpoint.include Rack::Grape::EndpointJson
       end
     end
