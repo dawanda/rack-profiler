@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/dawanda/rack-profiler.svg?branch=master)](https://travis-ci.org/dawanda/rack-profiler)
+
 # Rack::Profiler
 
 [![Build Status](https://travis-ci.org/dawanda/rack-profiler.svg)](https://travis-ci.org/dawanda/rack-profiler) [![Code Climate](https://codeclimate.com/github/dawanda/rack-profiler/badges/gpa.svg)](https://codeclimate.com/github/dawanda/rack-profiler) [![Test Coverage](https://codeclimate.com/github/dawanda/rack-profiler/badges/coverage.svg)](https://codeclimate.com/github/dawanda/rack-profiler)
